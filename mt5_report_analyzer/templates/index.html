@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MT5 Report Analyzer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a2234;
+            --bg-card-hover: #1f2b42;
+            --border: #2a3550;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --green: #10b981;
+            --green-bg: rgba(16, 185, 129, 0.1);
+            --red: #ef4444;
+            --red-bg: rgba(239, 68, 68, 0.1);
+            --yellow: #f59e0b;
+            --yellow-bg: rgba(245, 158, 11, 0.1);
+            --purple: #8b5cf6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-card));
+            border-bottom: 1px solid var(--border);
+            padding: 20px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-subtitle {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .select-robot {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            min-width: 250px;
+            cursor: pointer;
+        }
+
+        .select-robot:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .btn-analyze {
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-analyze:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-analyze:active {
+            transform: translateY(0);
+        }
+
+        .btn-analyze:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 40px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 60px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .dashboard {
+            display: none;
+        }
+
+        .dashboard.active {
+            display: block;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+
+        .kpi-card:hover {
+            background: var(--bg-card-hover);
+            transform: translateY(-2px);
+        }
+
+        .kpi-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .kpi-value.positive {
+            color: var(--green);
+        }
+
+        .kpi-value.negative {
+            color: var(--red);
+        }
+
+        .kpi-value.neutral {
+            color: var(--text-primary);
+        }
+
+        .kpi-value.accent {
+            color: var(--accent);
+        }
+
+        .section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .section-body {
+            padding: 24px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            background: var(--bg-secondary);
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table td {
+            padding: 12px 16px;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table tr:hover td {
+            background: var(--bg-card-hover);
+        }
+
+        .data-table .positive {
+            color: var(--green);
+        }
+
+        .data-table .negative {
+            color: var(--red);
+        }
+
+        .scrollable {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .scrollable::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scrollable::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        .scrollable::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-secondary);
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .tab:hover:not(.active) {
+            color: var(--text-primary);
+            background: var(--bg-card);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .error-msg {
+            background: var(--red-bg);
+            border: 1px solid var(--red);
+            color: var(--red);
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .error-msg.active {
+            display: block;
+        }
+
+        .files-list {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .files-list h3 {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+        .file-item:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .heatmap-grid {
+            display: grid;
+            gap: 2px;
+        }
+
+        .heatmap-cell {
+            padding: 8px 4px;
+            text-align: center;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .robot-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: var(--accent);
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <div>
+            <h1>
+                    <img src="{{ url_for('static', filename='Comunismo.ico') }}" 
+                        alt="Ícone" 
+                        style="width: 32px; height: 32px; vertical-align: middle; margin-right: 10px;">
+                    Performance de Automações no Metatrader
+                </h1>
+            <div class="header-subtitle">Análise completa de relatórios do Strategy Tester</div>
+        </div>
+        <div class="controls">
+            <select class="select-robot" id="robotSelector" style="display: none;">
+                <option value="all">Todos os Robôs</option>
+            </select>
+            <button class="btn-analyze" id="btnAnalyze" onclick="analyzeReports()">
+                🚀 Analisar Relatórios
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="error-msg" id="errorMsg"></div>
+
+        <div class="files-list" id="filesList">
+            <h3>📁 Arquivos detectados na pasta reports/</h3>
+            <div id="filesContainer">Carregando lista de arquivos...</div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analisando relatórios e calculando KPIs...</p>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 5px;">Isso pode demorar alguns segundos
+                dependendo do tamanho do arquivo.</p>
+        </div>
+
+        <div class="dashboard" id="dashboard">
+            <div id="robotDisplay"></div>
+            <div class="kpi-grid" id="kpiCards"></div>
+
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">📈 Curva de Equity</div>
+                </div>
+                <div class="section-body">
+                    <div class="chart-container">
+                        <canvas id="equityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">📊 Análises Detalhadas</div>
+                    <div class="tabs">
+                        <button class="tab active" onclick="switchTab('daily', this)">Diário</button>
+                        <button class="tab" onclick="switchTab('monthly', this)">Mensal</button>
+                        <button class="tab" onclick="switchTab('yearly', this)">Anual</button>
+                        <button class="tab" onclick="switchTab('hourly', this)">Por Hora</button>
+                        <button class="tab" onclick="switchTab('weekly', this)">Por Dia Semana</button>
+                        <button class="tab" onclick="switchTab('symbols', this)">Símbolos</button>
+                    </div>
+                </div>
+                <div class="section-body">
+                    <div class="tab-content active" id="tab-daily">
+                        <div class="scrollable">
+                            <table class="data-table" id="dailyTable">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Trades</th>
+                                        <th>Wins</th>
+                                        <th>Losses</th>
+                                        <th>Win Rate</th>
+                                        <th>Lucro Líquido</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tab-content" id="tab-monthly">
+                        <div class="scrollable">
+                            <table class="data-table" id="monthlyTable">
+                                <thead>
+                                    <tr>
+                                        <th>Mês</th>
+                                        <th>Trades</th>
+                                        <th>Wins</th>
+                                        <th>Losses</th>
+                                        <th>Win Rate</th>
+                                        <th>Lucro Líquido</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tab-content" id="tab-yearly">
+                        <div class="scrollable">
+                            <table class="data-table" id="yearlyTable">
+                                <thead>
+                                    <tr>
+                                        <th>Ano</th>
+                                        <th>Trades</th>
+                                        <th>Wins</th>
+                                        <th>Losses</th>
+                                        <th>Win Rate</th>
+                                        <th>Lucro Líquido</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tab-content" id="tab-hourly">
+                        <div class="chart-container"><canvas id="hourlyChart"></canvas></div>
+                    </div>
+                    <div class="tab-content" id="tab-weekly">
+                        <div class="chart-container"><canvas id="weeklyChart"></canvas></div>
+                    </div>
+                    <div class="tab-content" id="tab-symbols">
+                        <div class="scrollable">
+                            <table class="data-table" id="symbolsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Símbolo</th>
+                                        <th>Trades</th>
+                                        <th>Wins</th>
+                                        <th>Losses</th>
+                                        <th>Win Rate</th>
+                                        <th>Lucro Líquido</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">🗓️ Heatmap de Retornos Mensais</div>
+                </div>
+                <div class="section-body" id="heatmapContainer"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">📉 Drawdown</div>
+                </div>
+                <div class="section-body">
+                    <div class="kpi-grid" style="margin-bottom: 20px;" id="drawdownKpis"></div>
+                    <div class="chart-container"><canvas id="drawdownChart"></canvas></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">🔥 Sequências (Streaks)</div>
+                </div>
+                <div class="section-body">
+                    <div class="kpi-grid" id="streakKpis"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let charts = {};
+        let allAnalysisData = null;
+        let currentRobot = 'all';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM Carregado. Iniciando sistema...");
+            loadFiles();
+        });
+
+        // Formatação de moeda brasileira
+        function formatBRL(value) {
+            if (value === null || value === undefined) return 'R$ 0,00';
+            const num = typeof value === 'number' ? value : parseFloat(value);
+            if (isNaN(num)) return 'R$ 0,00';
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(num);
+        }
+
+        function formatNumber(value, decimals = 2) {
+            if (value === null || value === undefined) return '0';
+            const num = typeof value === 'number' ? value : parseFloat(value);
+            if (isNaN(num)) return '0';
+            return num.toLocaleString('pt-BR', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+
+        async function loadFiles() {
+            const container = document.getElementById('filesContainer');
+
+            try {
+                const response = await fetch('/api/files?t=' + new Date().getTime());
+
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log("Arquivos recebidos:", data);
+
+                if (!data.files || data.files.length === 0) {
+                    container.innerHTML = `
+                    <div style="padding: 15px; color: var(--yellow); background: var(--yellow-bg); border-radius: 6px;">
+                        ⚠️ Nenhum arquivo HTML encontrado na pasta 'reports'.<br>
+                        <small>Coloque os relatórios exportados do MT5 lá dentro.</small>
+                    </div>`;
+                    return;
+                }
+
+                container.innerHTML = data.files.map(f => `
+                <div class="file-item">
+                    <span>📄 ${f.name}</span>
+                    <span style="color: var(--text-muted);">${f.size_kb.toFixed(1)} KB</span>
+                </div>
+            `).join('');
+
+            } catch (error) {
+                console.error("Erro ao carregar lista:", error);
+                container.innerHTML = `
+                <div style="padding: 15px; color: var(--red); background: var(--red-bg); border-radius: 6px;">
+                    ❌ Erro ao conectar com o servidor.<br>
+                    <small>${error.message}</small>
+                </div>`;
+            }
+        }
+
+async function analyzeReports() {
+            const btn = document.getElementById('btnAnalyze');
+            const loading = document.getElementById('loading');
+            const dashboard = document.getElementById('dashboard');
+            const errorMsg = document.getElementById('errorMsg');
+
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Processando...';
+            loading.classList.add('active');
+            dashboard.classList.remove('active');
+            errorMsg.classList.remove('active');
+
+            try {
+                const response = await fetch('/api/analyze', { method: 'POST' });
+
+                if (!response.ok) {
+                    throw new Error(`Erro no servidor: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Erro ao processar relatórios');
+                }
+
+                allAnalysisData = data;
+
+                // Popular seletor de robôs
+                if (data.experts && data.experts.length > 0) {
+                    const selector = document.getElementById('robotSelector');
+                    selector.innerHTML = '<option value="all">Todos os Robôs</option>';
+                    data.experts.forEach(expert => {
+                        const option = document.createElement('option');
+                        option.value = expert;
+                        option.textContent = expert;
+                        selector.appendChild(option);
+                    });
+                    selector.style.display = 'block';
+
+                    // Adicionar evento de mudança
+                    selector.onchange = function () {
+                        currentRobot = this.value;
+                        filterByRobot();
+                    };
+                }
+
+                console.log("Análise gerada com sucesso.");
+                renderDashboard(data.analysis);
+                dashboard.classList.add('active');
+
+            } catch (error) {
+                console.error("Erro na análise:", error);
+                errorMsg.textContent = `Erro: ${error.message}`;
+                errorMsg.classList.add('active');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '🚀 Analisar Relatórios';
+                loading.classList.remove('active');
+            }
+        }
+
+        function filterByRobot() {
+            if (!allAnalysisData) return;
+
+            const robotDisplay = document.getElementById('robotDisplay');
+
+            if (currentRobot === 'all') {
+                robotDisplay.innerHTML = '';
+                renderDashboard(allAnalysisData.analysis);
+            } else {
+                robotDisplay.innerHTML = `<div class="robot-badge">🤖 Robô: ${currentRobot}</div>`;
+
+                // Verificar se temos análise específica para este robô
+                if (allAnalysisData.analysis_by_robot && allAnalysisData.analysis_by_robot[currentRobot]) {
+                    renderDashboard(allAnalysisData.analysis_by_robot[currentRobot]);
+                    console.log(`Filtrando dados do robô: ${currentRobot}`);
+                } else {
+                    console.warn(`Nenhuma análise encontrada para o robô: ${currentRobot}`);
+                }
+            }
+        }
+
+        function switchTab(tabName, btnElement) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+
+            if (btnElement) btnElement.classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
+
+        function renderDashboard(analysis) {
+            renderKpiCards(analysis.summary);
+            renderEquityChart(analysis.equity_curve);
+            renderDailyTable(analysis.daily);
+            renderMonthlyTable(analysis.monthly);
+            renderYearlyTable(analysis.yearly);
+            renderHourlyChart(analysis.hourly_distribution);
+            renderWeeklyChart(analysis.weekly_distribution);
+            renderSymbolsTable(analysis.symbols);
+            renderHeatmap(analysis.monthly_returns);
+            renderDrawdown(analysis.drawdown);
+            renderStreaks(analysis.streaks);
+        }
+
+        function renderKpiCards(summary) {
+            const cards = [
+                { label: 'Lucro Líquido', value: formatBRL(summary.net_profit), cls: summary.net_profit >= 0 ? 'positive' : 'negative' },
+                { label: 'Total Trades', value: summary.total_trades.toLocaleString('pt-BR'), cls: 'neutral' },
+                { label: 'Win Rate', value: summary.win_rate + '%', cls: summary.win_rate >= 50 ? 'positive' : 'negative' },
+                { label: 'Profit Factor', value: formatNumber(summary.profit_factor, 2), cls: summary.profit_factor >= 1 ? 'positive' : 'negative' },
+                { label: 'Expectância', value: formatBRL(summary.expectancy), cls: summary.expectancy >= 0 ? 'positive' : 'negative' },
+                { label: 'Payoff Ratio', value: formatNumber(summary.payoff_ratio, 2), cls: 'accent' },
+                { label: 'Max Drawdown', value: formatBRL(summary.max_drawdown), cls: 'negative' },
+                { label: 'Recovery Factor', value: formatNumber(summary.recovery_factor, 2), cls: summary.recovery_factor >= 1 ? 'positive' : 'negative' },
+                { label: 'Sharpe Ratio', value: formatNumber(summary.sharpe_ratio, 3), cls: summary.sharpe_ratio >= 0 ? 'positive' : 'negative' },
+                { label: 'Média/Trade', value: formatBRL(summary.avg_trade), cls: summary.avg_trade >= 0 ? 'positive' : 'negative' },
+                { label: 'Gross Profit', value: formatBRL(summary.gross_profit), cls: 'positive' },
+                { label: 'Gross Loss', value: formatBRL(summary.gross_loss), cls: 'negative' },
+                { label: 'Melhor Trade', value: formatBRL(summary.best_trade), cls: 'positive' },
+                { label: 'Pior Trade', value: formatBRL(summary.worst_trade), cls: 'negative' },
+                { label: 'Sequência Wins', value: summary.consecutive_wins, cls: 'positive' },
+                { label: 'Sequência Losses', value: summary.consecutive_losses, cls: 'negative' },
+                { label: 'Total Comissão', value: formatBRL(summary.total_commission), cls: 'neutral' },
+                { label: 'Total Swap', value: formatBRL(summary.total_swap), cls: 'neutral' },
+            ];
+
+            document.getElementById('kpiCards').innerHTML = cards.map(c => `
+            <div class="kpi-card">
+                <div class="kpi-label">${c.label}</div>
+                <div class="kpi-value ${c.cls}">${c.value}</div>
+            </div>
+        `).join('');
+        }
+
+        function renderEquityChart(equityCurve) {
+            destroyChart('equityChart');
+            const ctx = document.getElementById('equityChart').getContext('2d');
+            charts.equityChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: equityCurve.map(e => e.trade),
+                    datasets: [{
+                        label: 'Equity',
+                        data: equityCurve.map(e => e.equity),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        borderWidth: 2,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: 'rgba(42, 53, 80, 0.5)' }, ticks: { color: '#64748b', maxTicksLimit: 15 } },
+                        y: { grid: { color: 'rgba(42, 53, 80, 0.5)' }, ticks: { color: '#64748b' } }
+                    }
+                }
+            });
+        }
+
+        function renderDailyTable(daily) { renderGenericTable('dailyTable', daily); }
+        function renderMonthlyTable(monthly) { renderGenericTable('monthlyTable', monthly); }
+        function renderYearlyTable(yearly) { renderGenericTable('yearlyTable', yearly); }
+
+        function renderGenericTable(tableId, data) {
+            const tbody = document.querySelector(`#${tableId} tbody`);
+            if (!tbody) return;
+            tbody.innerHTML = Object.entries(data).map(([key, d]) => `
+            <tr>
+                <td>${key}</td>
+                <td>${d.trades}</td>
+                <td class="positive">${d.wins}</td>
+                <td class="negative">${d.losses}</td>
+                <td>${d.win_rate}%</td>
+                <td class="${d.net_profit >= 0 ? 'positive' : 'negative'}">${formatBRL(d.net_profit)}</td>
+            </tr>
+        `).join('');
+        }
+
+        function renderHourlyChart(hourly) {
+            destroyChart('hourlyChart');
+            const hours = Object.keys(hourly).map(Number).sort((a, b) => a - b);
+            const ctx = document.getElementById('hourlyChart').getContext('2d');
+
+            charts.hourlyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: hours.map(h => `${h}h`),
+                    datasets: [
+                        {
+                            label: 'Trades',
+                            data: hours.map(h => hourly[h].trades),
+                            backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                            yAxisID: 'y',
+                        },
+                        {
+                            label: 'Lucro',
+                            data: hours.map(h => hourly[h].profit),
+                            type: 'line',
+                            borderColor: '#10b981',
+                            tension: 0.3,
+                            pointRadius: 2,
+                            yAxisID: 'y1',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: 'rgba(42, 53, 80, 0.5)' }, ticks: { color: '#64748b' } },
+                        y: { position: 'left', grid: { color: 'rgba(42, 53, 80, 0.5)' }, ticks: { color: '#64748b' } },
+                        y1: { position: 'right', grid: { display: false }, ticks: { color: '#10b981' } }
+                    }
+                }
+            });
+        }
+
+        function renderWeeklyChart(weekly) {
+            destroyChart('weeklyChart');
+            const days = Object.keys(weekly);
+            const ctx = document.getElementById('weeklyChart').getContext('2d');
+
+            charts.weeklyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: days,
+                    datasets: [
+                        {
+                            label: 'Trades',
+                            data: days.map(d => weekly[d].trades),
+                            backgroundColor: 'rgba(139, 92, 246, 0.6)',
+                            yAxisID: 'y',
+                        },
+                        {
+                            label: 'Lucro',
+                            data: days.map(d => weekly[d].profit),
+                            type: 'line',
+                            borderColor: '#f59e0b',
+                            tension: 0.3,
+                            pointRadius: 3,
+                            yAxisID: 'y1',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: 'rgba(42, 53, 80, 0.5)' }, ticks: { color: '#64748b' } },
+                        y: { position: 'left', grid: { color: 'rgba(42, 53, 80, 0.5)' }, ticks: { color: '#64748b' } },
+                        y1: { position: 'right', grid: { display: false }, ticks: { color: '#f59e0b' } }
+                    }
+                }
+            });
+        }
+
+        function renderSymbolsTable(symbols) {
+            const tbody = document.querySelector('#symbolsTable tbody');
+            tbody.innerHTML = Object.entries(symbols).map(([key, d]) => `
+            <tr>
+                <td><strong>${key}</strong></td>
+                <td>${d.trades}</td>
+                <td class="positive">${d.wins}</td>
+                <td class="negative">${d.losses}</td>
+                <td>${d.win_rate}%</td>
+                <td class="${d.net_profit >= 0 ? 'positive' : 'negative'}">${formatBRL(d.net_profit)}</td>
+            </tr>
+        `).join('');
+        }
+
+        function renderHeatmap(monthlyReturns) {
+            const container = document.getElementById('heatmapContainer');
+            const years = {};
+            Object.entries(monthlyReturns).forEach(([key, data]) => {
+                const [year, month] = key.split('-');
+                if (!years[year]) years[year] = {};
+                years[year][month] = data;
+            });
+
+            let html = '';
+            const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+            for (const year of Object.keys(years).sort()) {
+                html += `<h4 style="margin-bottom: 8px; color: var(--text-secondary);">${year}</h4>`;
+                html += '<div style="display: grid; grid-template-columns: 40px repeat(12, 1fr); gap: 2px; margin-bottom: 16px;">';
+                html += '<div></div>';
+                months.forEach(m => html += `<div style="text-align:center; font-size:11px; color: var(--text-muted); padding: 4px;">${m}</div>`);
+                html += '<div style="font-size:11px; color: var(--text-muted); padding: 8px 4px;">Lucro</div>';
+
+                for (let m = 1; m <= 12; m++) {
+                    const monthKey = `${year}-${String(m).padStart(2, '0')}`;
+                    const data = years[year][m];
+                    if (data) {
+                        const profit = data.profit;
+                        const intensity = Math.min(Math.abs(profit) / 1000, 1);
+                        const bg = profit >= 0
+                            ? `rgba(16, 185, 129, ${0.1 + intensity * 0.5})`
+                            : `rgba(239, 68, 68, ${0.1 + intensity * 0.5})`;
+                        html += `<div class="heatmap-cell" style="background: ${bg}; color: ${profit >= 0 ? '#10b981' : '#ef4444'};">
+                        ${formatBRL(profit)}<br><span style="font-size:10px; opacity:0.7;">${data.trades} ops</span>
+                    </div>`;
+                    } else {
+                        html += '<div class="heatmap-cell" style="background: transparent; color: var(--text-muted);">-</div>';
+                    }
+                }
+                html += '</div>';
+            }
+            container.innerHTML = html;
+        }
+
+        function renderDrawdown(drawdown) {
+            document.getElementById('drawdownKpis').innerHTML = `
+            <div class="kpi-card"><div class="kpi-label">Max Drawdown (R$)</div><div class="kpi-value negative">${formatBRL(drawdown.max_drawdown)}</div></div>
+            <div class="kpi-card"><div class="kpi-label">Max Drawdown (%)</div><div class="kpi-value negative">${drawdown.max_drawdown_pct}%</div></div>
+            <div class="kpi-card"><div class="kpi-label">Equity Atual</div><div class="kpi-value ${drawdown.current_equity >= 0 ? 'positive' : 'negative'}">${formatBRL(drawdown.current_equity)}</div></div>
+        `;
+
+            destroyChart('drawdownChart');
+            const ctx = document.getElementById('drawdownChart').getContext('2d');
+            const equity = drawdown.equity_curve;
+            let peak = 0;
+            const drawdowns = equity.map(e => {
+                if (e > peak) peak = e;
+                return -(peak - e);
+            });
+
+            charts.drawdownChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: drawdowns.map((_, i) => i + 1),
+                    datasets: [{
+                        label: 'Drawdown',
+                        data: drawdowns,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        borderWidth: 1,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: 'rgba(42, 53, 80, 0.5)' }, ticks: { color: '#64748b', maxTicksLimit: 15 } },
+                        y: { grid: { color: 'rgba(42, 53, 80, 0.5)' }, ticks: { color: '#64748b' } }
+                    }
+                }
+            });
+        }
+
+        function renderStreaks(streaks) {
+            document.getElementById('streakKpis').innerHTML = `
+            <div class="kpi-card"><div class="kpi-label">Máx Wins Seguidos</div><div class="kpi-value positive">${streaks.max_win_streak}</div><div class="kpi-sub">Média: ${streaks.avg_win_streak}</div></div>
+            <div class="kpi-card"><div class="kpi-label">Máx Losses Seguidos</div><div class="kpi-value negative">${streaks.max_loss_streak}</div><div class="kpi-sub">Média: ${streaks.avg_loss_streak}</div></div>
+            <div class="kpi-card"><div class="kpi-label">Streak Atual</div><div class="kpi-value ${streaks.current.type === 'win' ? 'positive' : streaks.current.type === 'loss' ? 'negative' : 'neutral'}">${streaks.current.type === 'win' ? '🔥' : streaks.current.type === 'loss' ? '❄️' : '➖'} ${streaks.current.count}</div></div>
+        `;
+        }
+
+        function destroyChart(id) {
+            if (charts[id]) { charts[id].destroy(); charts[id] = null; }
+        }
+    </script>
+
+</body>
+
+</html>
